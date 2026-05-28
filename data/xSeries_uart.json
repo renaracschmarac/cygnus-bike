@@ -1,0 +1,366 @@
+[
+  {
+    "key": "temp_fet_filtered",
+    "offset": 0,
+    "length": 2,
+    "scale": 10,
+    "type": "int"
+  },
+  {
+    "key": "temp_motor_filtered",
+    "offset": 2,
+    "length": 2,
+    "scale": 10,
+    "type": "int"
+  },
+  {
+    "key": "reset_avg_motor_current",
+    "offset": 4,
+    "length": 4,
+    "scale": 100,
+    "type": "int"
+  },
+  {
+    "key": "reset_avg_input_current",
+    "offset": 8,
+    "length": 4,
+    "scale": 100,
+    "type": "int"
+  },
+  {
+    "key": "reset_avg_id",
+    "offset": 12,
+    "length": 4,
+    "scale": 100,
+    "type": "int"
+  },
+  {
+    "key": "reset_avg_iq",
+    "offset": 16,
+    "length": 4,
+    "scale": 100,
+    "type": "int"
+  },
+  {
+    "key": "duty cycle",
+    "offset": 20,
+    "length": 2,
+    "scale": 1000,
+    "type": "int"
+  },
+  {
+    "key": "rpm",
+    "offset": 22,
+    "length": 4,
+    "scale": 1,
+    "type": "int"
+  },
+  {
+    "key": "Input_V",
+    "offset": 26,
+    "length": 2,
+    "scale": 10,
+    "type": "int"
+  },
+  {
+    "key": "Battery Consumption",
+    "offset": 28,
+    "length": 4,
+    "scale": 10000,
+    "type": "int"
+  },
+  {
+    "key": "Total Trip Time",
+    "offset": 32,
+    "length": 4,
+    "scale": 1,
+    "type": "uint"
+  },
+  {
+    "key": "Total Watt Hour Draw",
+    "offset": 36,
+    "length": 4,
+    "scale": 10000,
+    "type": "int"
+  },
+  {
+    "key": "6v Analog 3",
+    "offset": 40,
+    "length": 4,
+    "scale": 100,
+    "type": "int"
+  },
+  {
+    "key": "Throttle",
+    "offset": 44,
+    "length": 4,
+    "scale": 100,
+    "type": "int"
+  },
+  {
+    "key": "Regen",
+    "offset": 48,
+    "length": 4,
+    "scale": 100,
+    "type": "int"
+  },
+  {
+    "key": "fault",
+    "offset": 52,
+    "length": 1,
+    "scale": 1,
+    "type": "uint"
+  },
+  {
+    "key": "Digital_Inputs",
+    "offset": 53,
+    "length": 1,
+    "scale": 1,
+    "type": "uint"
+  },
+  {
+    "key": "current_controller_id",
+    "offset": 54,
+    "length": 1,
+    "scale": 1,
+    "type": "uint"
+  },
+  {
+    "key": "NTC_TEMP_MOS1",
+    "offset": 55,
+    "length": 2,
+    "scale": 10,
+    "type": "int"
+  },
+  {
+    "key": "NTC_TEMP_MOS2",
+    "offset": 57,
+    "length": 2,
+    "scale": 10,
+    "type": "int"
+  },
+  {
+    "key": "NTC_TEMP_MOS3",
+    "offset": 59,
+    "length": 2,
+    "scale": 10,
+    "type": "int"
+  },
+  {
+    "key": "reset_avg_vd",
+    "offset": 61,
+    "length": 4,
+    "scale": 1000,
+    "type": "int"
+  },
+  {
+    "key": "reset_avg_vq",
+    "offset": 65,
+    "length": 4,
+    "scale": 1000,
+    "type": "int"
+  },
+  {
+    "key": "ODO",
+    "offset": 72,
+    "length": 4,
+    "scale": 1,
+    "type": "uint"
+  },
+  {
+    "key": "6v Analog 4",
+    "offset": 76,
+    "length": 4,
+    "scale": 100,
+    "type": "int"
+  },
+  {
+    "key": "Speed",
+    "offset": 80,
+    "length": 4,
+    "scale": 100,
+    "type": "int"
+  },
+  {
+    "key": "Race\/Street Mode",
+    "offset": 84,
+    "length": 1,
+    "scale": 1,
+    "type": "uint"
+  },
+  {
+    "key": "Assist Level",
+    "offset": 85,
+    "length": 1,
+    "scale": 1,
+    "type": "int"
+  },
+  {
+    "key": "voltage36v",
+    "offset": 86,
+    "length": 4,
+    "scale": 10000,
+    "type": "int"
+  },
+  {
+    "key": "voltage5v5a",
+    "offset": 90,
+    "length": 4,
+    "scale": 10000,
+    "type": "int"
+  },
+  {
+    "key": "temp36v",
+    "offset": 94,
+    "length": 4,
+    "scale": 10000,
+    "type": "int"
+  },
+  {
+    "key": "temp5v5a",
+    "offset": 98,
+    "length": 4,
+    "scale": 10000,
+    "type": "int"
+  },
+  {
+    "key": "voltage5vIn",
+    "offset": 102,
+    "length": 4,
+    "scale": 10000,
+    "type": "int"
+  },
+  {
+    "key": "voltage5vExt",
+    "offset": 106,
+    "length": 4,
+    "scale": 10000,
+    "type": "int"
+  },
+  {
+    "key": "voltage14v",
+    "offset": 110,
+    "length": 4,
+    "scale": 10000,
+    "type": "int"
+  },
+  {
+    "key": "tempPcb",
+    "offset": 114,
+    "length": 4,
+    "scale": 10000,
+    "type": "int"
+  },
+  {
+    "key": "tempBp",
+    "offset": 118,
+    "length": 4,
+    "scale": 10000,
+    "type": "int"
+  },
+  {
+    "key": "io8",
+    "offset": 122,
+    "length": 2,
+    "scale": 1,
+    "type": "uint"
+  },
+  {
+    "key": "ioBts",
+    "offset": 124,
+    "length": 1,
+    "scale": 1,
+    "type": "uint"
+  },
+  {
+    "key": "currentBp",
+    "offset": 125,
+    "length": 4,
+    "scale": 10000,
+    "type": "int"
+  },
+  {
+    "key": "hallA",
+    "offset": 129,
+    "length": 1,
+    "scale": 1,
+    "type": "uint"
+  },
+  {
+    "key": "hallB",
+    "offset": 130,
+    "length": 1,
+    "scale": 1,
+    "type": "uint"
+  },
+  {
+    "key": "hallCi",
+    "offset": 131,
+    "length": 1,
+    "scale": 1,
+    "type": "uint"
+  },
+  {
+    "key": "pwm",
+    "offset": 132,
+    "length": 1,
+    "scale": 1,
+    "type": "uint"
+  },
+  {
+    "key": "button",
+    "offset": 133,
+    "length": 1,
+    "scale": 1,
+    "type": "uint"
+  },
+  {
+    "key": "throttle1",
+    "offset": 134,
+    "length": 4,
+    "scale": 100,
+    "type": "int"
+  },
+  {
+    "key": "batteryPercentage",
+    "offset": 138,
+    "length": 2,
+    "scale": 1,
+    "type": "uint"
+  },
+  {
+    "key": "throttleInPercentage",
+    "offset": 140,
+    "length": 4,
+    "scale": 1,
+    "type": "int"
+  },
+  {
+    "key": "regenInPercentage",
+    "offset": 144,
+    "length": 4,
+    "scale": 1,
+    "type": "int"
+  },
+  {
+    "key": "wheelieModeAngle",
+    "offset": 148,
+    "length": 4,
+    "scale": 100,
+    "type": "int"
+  },
+  {
+    "key": "powerPercentage",
+    "offset": 152,
+    "length": 2,
+    "scale": 1,
+    "type": "uint"
+  },
+  {
+    "key": "phaseCurrentOrTorquePercentage",
+    "offset": 154,
+    "length": 2,
+    "scale": 1,
+    "type": "int"
+  }
+]

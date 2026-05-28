@@ -1,0 +1,7 @@
+.cygnus-bike.local.json
+__pycache__/
+*.py[cod]
+researchdocs/apk/
+researchdocs/captures/
+.agents/
+.codex/
