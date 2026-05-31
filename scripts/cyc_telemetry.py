@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Read CYC/VESC telemetry over Nordic UART.
 
-This sends only a VESC COMM_GET_VALUES request and subscribes to NUS
-notifications. It does not write motor/app configuration.
+By default this sends only a VESC COMM_GET_VALUES request and subscribes to
+NUS notifications. Other commands can be supplied for read-only probing; this
+script does not write motor/app configuration.
 """
 
 from __future__ import annotations
@@ -25,6 +26,8 @@ NUS_CCC_HANDLE = "0x0010"
 DEVICE_NAME = "CYCMOTOR"
 LOCAL_SETTINGS = ".cygnus-bike.local.json"
 GET_VALUES = 4
+GET_MCCONF = 0x0E
+GET_APPCONF = 0x11
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -78,6 +81,300 @@ class Field:
     length: int
     scale: float
     type: str
+
+
+@dataclass(frozen=True)
+class ConfigField:
+    key: str
+    offset: int
+    length: int
+    type: str
+
+
+COMMAND_NAMES = {
+    GET_VALUES: "COMM_GET_VALUES",
+    GET_MCCONF: "COMM_GET_MCCONF",
+    GET_APPCONF: "COMM_GET_APPCONF",
+}
+
+APP_CONFIG_FIELDS = [
+    ConfigField("signature", 0, 4, "uint"),
+    ConfigField("controller_id", 4, 1, "uint"),
+    ConfigField("timeout_msec", 5, 4, "uint"),
+    ConfigField("timeout_brake_current", 9, 4, "float"),
+    ConfigField("send_can_status", 13, 1, "uint"),
+    ConfigField("send_can_status_rate_hz", 14, 2, "uint"),
+    ConfigField("can_baud_rate", 16, 1, "uint"),
+    ConfigField("pairing_done", 17, 1, "bool"),
+    ConfigField("permanent_uart_enabled", 18, 1, "bool"),
+    ConfigField("shutdown_mode", 19, 1, "uint"),
+    ConfigField("can_mode", 20, 1, "uint"),
+    ConfigField("uavcan_esc_index", 21, 1, "uint"),
+    ConfigField("uavcan_raw_mode", 22, 1, "uint"),
+    ConfigField("uavcan_raw_rpm_max", 23, 4, "float"),
+    ConfigField("kill_sw_mode", 28, 1, "uint"),
+    ConfigField("app_to_use", 29, 1, "uint"),
+    ConfigField("app_ppm_conf.ctrl_type", 30, 1, "uint"),
+    ConfigField("app_adc_conf.ctrl_type", 86, 1, "uint"),
+    ConfigField("app_uart_baudrate", 142, 4, "uint"),
+    ConfigField("app_chuk_conf.ctrl_type", 146, 1, "uint"),
+    ConfigField("app_pas_conf.ctrl_type", 402, 1, "uint"),
+    ConfigField("app_pas_conf.sensor_type", 403, 1, "uint"),
+    ConfigField("imu_conf.type", 420, 1, "uint"),
+    ConfigField("imu_conf.mode", 421, 1, "uint"),
+]
+
+MOTOR_CONFIG_FIELDS = [
+    ConfigField("pwm_mode", 4, 1, "uint"),
+    ConfigField("comm_mode", 5, 1, "uint"),
+    ConfigField("motor_type", 6, 1, "uint"),
+    ConfigField("sensor_mode", 7, 1, "uint"),
+    ConfigField("foc_sensor_mode", 172, 1, "uint"),
+    ConfigField("foc_observer_type", 263, 1, "uint"),
+    ConfigField("foc_mtpa_mode", 317, 1, "uint"),
+    ConfigField("m_sensor_port_mode", 428, 1, "uint"),
+    ConfigField("m_drv8301_oc_mode", 430, 1, "uint"),
+    ConfigField("m_out_aux_mode", 448, 1, "uint"),
+    ConfigField("m_motor_temp_sens_type", 449, 1, "uint"),
+    ConfigField("si_battery_type", 464, 1, "uint"),
+    ConfigField("bms.type", 474, 1, "uint"),
+    ConfigField("bms.fwd_can_mode", 483, 1, "uint"),
+]
+
+CONFIG_LAYOUTS = {
+    GET_APPCONF: ("cyc_app_0503", APP_CONFIG_FIELDS),
+    GET_MCCONF: ("cyc_motor_0503", MOTOR_CONFIG_FIELDS),
+}
+
+ENUM_LABELS = {
+    "app_adc_conf.ctrl_type": {
+        0: "ADC_CTRL_TYPE_NONE",
+        1: "ADC_CTRL_TYPE_CURRENT",
+        2: "ADC_CTRL_TYPE_CURRENT_REV_CENTER",
+        3: "ADC_CTRL_TYPE_CURRENT_REV_BUTTON",
+        4: "ADC_CTRL_TYPE_CURRENT_REV_BUTTON_BRAKE_ADC",
+        5: "ADC_CTRL_TYPE_CURRENT_REV_BUTTON_BRAKE_CENTER",
+        6: "ADC_CTRL_TYPE_CURRENT_NOREV_BRAKE_CENTER",
+        7: "ADC_CTRL_TYPE_CURRENT_NOREV_BRAKE_BUTTON",
+        8: "ADC_CTRL_TYPE_CURRENT_NOREV_BRAKE_ADC",
+        9: "ADC_CTRL_TYPE_DUTY",
+        10: "ADC_CTRL_TYPE_DUTY_REV_CENTER",
+        11: "ADC_CTRL_TYPE_DUTY_REV_BUTTON",
+        12: "ADC_CTRL_TYPE_PID",
+        13: "ADC_CTRL_TYPE_PID_REV_CENTER",
+        14: "ADC_CTRL_TYPE_PID_REV_BUTTON",
+    },
+    "app_chuk_conf.ctrl_type": {
+        0: "CHUK_CTRL_TYPE_NONE",
+        1: "CHUK_CTRL_TYPE_CURRENT",
+        2: "CHUK_CTRL_TYPE_CURRENT_NOREV",
+        3: "CHUK_CTRL_TYPE_CURRENT_BIDIRECTIONAL",
+    },
+    "app_pas_conf.ctrl_type": {
+        0: "PAS_CTRL_TYPE_NONE",
+        1: "PAS_CTRL_TYPE_CADENCE",
+    },
+    "app_pas_conf.sensor_type": {
+        0: "PAS_SENSOR_TYPE_QUADRATURE",
+    },
+    "app_ppm_conf.ctrl_type": {
+        0: "PPM_CTRL_TYPE_NONE",
+        1: "PPM_CTRL_TYPE_CURRENT",
+        2: "PPM_CTRL_TYPE_CURRENT_NOREV",
+        3: "PPM_CTRL_TYPE_CURRENT_NOREV_BRAKE",
+        4: "PPM_CTRL_TYPE_DUTY",
+        5: "PPM_CTRL_TYPE_DUTY_NOREV",
+        6: "PPM_CTRL_TYPE_PID",
+        7: "PPM_CTRL_TYPE_PID_NOREV",
+        8: "PPM_CTRL_TYPE_CURRENT_BRAKE_REV_HYST",
+        9: "PPM_CTRL_TYPE_CURRENT_SMART_REV",
+    },
+    "app_to_use": {
+        0: "APP_NONE",
+        1: "APP_PPM",
+        2: "APP_ADC",
+        3: "APP_UART",
+        4: "APP_PPM_UART",
+        5: "APP_ADC_UART",
+        6: "APP_NUNCHUK",
+        7: "APP_NRF",
+        8: "APP_CUSTOM",
+        9: "APP_BALANCE",
+        10: "APP_PAS",
+        11: "APP_ADC_PAS",
+    },
+    "bms.fwd_can_mode": {
+        0: "BMS_FWD_CAN_MODE_DISABLED",
+        1: "BMS_FWD_CAN_MODE_USB_ONLY",
+        2: "BMS_FWD_CAN_MODE_ANY",
+    },
+    "bms.type": {
+        0: "BMS_TYPE_NONE",
+        1: "BMS_TYPE_VESC",
+    },
+    "can_baud_rate": {
+        0: "CAN_BAUD_125K",
+        1: "CAN_BAUD_250K",
+        2: "CAN_BAUD_500K",
+        3: "CAN_BAUD_1M",
+        4: "CAN_BAUD_10K",
+        5: "CAN_BAUD_20K",
+        6: "CAN_BAUD_50K",
+        7: "CAN_BAUD_75K",
+        8: "CAN_BAUD_100K",
+        255: "CAN_BAUD_INVALID",
+    },
+    "can_mode": {
+        0: "CAN_MODE_VESC",
+        1: "CAN_MODE_UAVCAN",
+        2: "CAN_MODE_COMM_BRIDGE",
+    },
+    "comm_mode": {
+        0: "COMM_MODE_INTEGRATE",
+        1: "COMM_MODE_DELAY",
+    },
+    "foc_mtpa_mode": {
+        0: "MTPA_MODE_OFF",
+        1: "MTPA_MODE_IQ_TARGET",
+        2: "MTPA_MODE_IQ_MEASURED",
+    },
+    "foc_observer_type": {
+        0: "FOC_OBSERVER_ORTEGA_ORIGINAL",
+        1: "FOC_OBSERVER_MXLEMMING",
+        2: "FOC_OBSERVER_ORTEGA_LAMBDA_COMP",
+        3: "FOC_OBSERVER_MXLEMMING_LAMBDA_COMP",
+        4: "FOC_OBSERVER_MXV",
+        5: "FOC_OBSERVER_MXV_LAMBDA_COMP",
+        6: "FOC_OBSERVER_MXV_LAMBDA_COMP_LIN",
+    },
+    "foc_sensor_mode": {
+        0: "FOC_SENSOR_MODE_SENSORLESS",
+        1: "FOC_SENSOR_MODE_ENCODER",
+        2: "FOC_SENSOR_MODE_HALL",
+        3: "FOC_SENSOR_MODE_HFI",
+        4: "FOC_SENSOR_MODE_HFI_START",
+        5: "FOC_SENSOR_MODE_HFI_V2",
+        6: "FOC_SENSOR_MODE_HFI_V3",
+        7: "FOC_SENSOR_MODE_HFI_V4",
+        8: "FOC_SENSOR_MODE_HFI_V5",
+        9: "FOC_SENSOR_MODE_ENCODER_AB",
+    },
+    "imu_conf.mode": {
+        0: "AHRS_MODE_MADGWICK",
+        1: "AHRS_MODE_MAHONY",
+    },
+    "imu_conf.type": {
+        0: "IMU_TYPE_OFF",
+        1: "IMU_TYPE_INTERNAL",
+        2: "IMU_TYPE_EXTERNAL_MPU9X50",
+        3: "IMU_TYPE_EXTERNAL_ICM20948",
+        4: "IMU_TYPE_EXTERNAL_BMI160",
+        5: "IMU_TYPE_EXTERNAL_LSM6DS3",
+    },
+    "kill_sw_mode": {
+        0: "KILL_SW_MODE_DISABLED",
+        1: "KILL_SW_MODE_PPM_LOW",
+        2: "KILL_SW_MODE_PPM_HIGH",
+        3: "KILL_SW_MODE_ADC2_LOW",
+        4: "KILL_SW_MODE_ADC2_HIGH",
+    },
+    "m_drv8301_oc_mode": {
+        0: "DRV8301_OC_LIMIT",
+        1: "DRV8301_OC_LATCH_SHUTDOWN",
+        2: "DRV8301_OC_REPORT_ONLY",
+        3: "DRV8301_OC_DISABLED",
+    },
+    "m_motor_temp_sens_type": {
+        0: "TEMP_SENSOR_NTC_10K_25C",
+        1: "TEMP_SENSOR_PTC_1K_100C",
+        2: "TEMP_SENSOR_KTY83_122",
+        3: "TEMP_SENSOR_NTC_100K_25C",
+        4: "TEMP_SENSOR_KTY84_130",
+        5: "TEMP_SENSOR_NTCX",
+        6: "TEMP_SENSOR_PTCX",
+        7: "TEMP_SENSOR_PT1000",
+        8: "TEMP_SENSOR_DISABLED",
+    },
+    "m_out_aux_mode": {
+        0: "OUT_AUX_MODE_OFF",
+        1: "OUT_AUX_MODE_ON_AFTER_2S",
+        2: "OUT_AUX_MODE_ON_AFTER_5S",
+        3: "OUT_AUX_MODE_ON_AFTER_10S",
+        4: "OUT_AUX_MODE_UNUSED",
+        5: "OUT_AUX_MODE_ON_WHEN_RUNNING",
+        6: "OUT_AUX_MODE_ON_WHEN_NOT_RUNNING",
+        7: "OUT_AUX_MODE_MOTOR_50",
+        8: "OUT_AUX_MODE_MOSFET_50",
+        9: "OUT_AUX_MODE_MOTOR_70",
+        10: "OUT_AUX_MODE_MOSFET_70",
+        11: "OUT_AUX_MODE_MOTOR_MOSFET_50",
+        12: "OUT_AUX_MODE_MOTOR_MOSFET_70",
+    },
+    "m_sensor_port_mode": {
+        0: "SENSOR_PORT_MODE_HALL",
+        1: "SENSOR_PORT_MODE_ABI",
+        2: "SENSOR_PORT_MODE_AS5047_SPI",
+        3: "SENSOR_PORT_MODE_AD2S1205",
+        4: "SENSOR_PORT_MODE_SINCOS",
+        5: "SENSOR_PORT_MODE_TS5700N8501",
+        6: "SENSOR_PORT_MODE_TS5700N8501_MULTITURN",
+        7: "SENSOR_PORT_MODE_MT6816_SPI_HW",
+        8: "SENSOR_PORT_MODE_AS5x47U_SPI",
+        9: "SENSOR_PORT_MODE_BISSC",
+        10: "SENSOR_PORT_MODE_TLE5012_SSC_SW",
+        11: "SENSOR_PORT_MODE_TLE5012_SSC_HW",
+        12: "SENSOR_PORT_MODE_CUSTOM_ENCODER",
+        13: "SENSOR_PORT_MODE_PWM",
+        14: "SENSOR_PORT_MODE_PWM_ABI",
+        15: "SENSOR_PORT_MODE_MA782",
+        16: "SENSOR_PORT_MODE_AMT22",
+    },
+    "motor_type": {
+        0: "MOTOR_TYPE_BLDC",
+        1: "MOTOR_TYPE_DC",
+        2: "MOTOR_TYPE_FOC",
+    },
+    "pwm_mode": {
+        0: "PWM_MODE_NONSYNCHRONOUS_HISW",
+        1: "PWM_MODE_SYNCHRONOUS",
+        2: "PWM_MODE_BIPOLAR",
+    },
+    "send_can_status": {
+        0: "CAN_STATUS_DISABLED",
+        1: "CAN_STATUS_1",
+        2: "CAN_STATUS_1_2",
+        3: "CAN_STATUS_1_2_3",
+        4: "CAN_STATUS_1_2_3_4",
+        5: "CAN_STATUS_1_2_3_4_5",
+    },
+    "sensor_mode": {
+        0: "SENSOR_MODE_SENSORLESS",
+        1: "SENSOR_MODE_SENSORED",
+        2: "SENSOR_MODE_HYBRID",
+    },
+    "shutdown_mode": {
+        0: "SHUTDOWN_MODE_ALWAYS_OFF",
+        1: "SHUTDOWN_MODE_ALWAYS_ON",
+        2: "SHUTDOWN_MODE_TOGGLE_BUTTON_ONLY",
+        3: "SHUTDOWN_MODE_OFF_AFTER_10S",
+        4: "SHUTDOWN_MODE_OFF_AFTER_1M",
+        5: "SHUTDOWN_MODE_OFF_AFTER_5M",
+        6: "SHUTDOWN_MODE_OFF_AFTER_10M",
+        7: "SHUTDOWN_MODE_OFF_AFTER_30M",
+        8: "SHUTDOWN_MODE_OFF_AFTER_1H",
+        9: "SHUTDOWN_MODE_OFF_AFTER_5H",
+    },
+    "si_battery_type": {
+        0: "BATTERY_TYPE_LIION_3_0__4_2",
+        1: "BATTERY_TYPE_LIIRON_2_6__3_6",
+        2: "BATTERY_TYPE_LEAD_ACID",
+    },
+    "uavcan_raw_mode": {
+        0: "UAVCAN_RAW_MODE_CURRENT",
+        1: "UAVCAN_RAW_MODE_CURRENT_NO_REV_BRAKE",
+        2: "UAVCAN_RAW_MODE_DUTY",
+    },
+}
 
 
 def crc16(data: bytes) -> int:
@@ -161,13 +458,65 @@ def decode_value(data: bytes, field: Field) -> float | int:
     return value
 
 
+def decode_config_value(data: bytes, field: ConfigField) -> bool | float | int:
+    raw = data[field.offset : field.offset + field.length]
+    if len(raw) != field.length:
+        raise ValueError(f"not enough bytes for {field.key}")
+    if field.type == "float":
+        import struct
+
+        return struct.unpack(">f", raw)[0]
+    if field.type == "bool":
+        return bool(int.from_bytes(raw, "big"))
+    signed = field.type == "int"
+    return int.from_bytes(raw, "big", signed=signed)
+
+
+def command_name(command: int) -> str:
+    return COMMAND_NAMES.get(command, f"COMM_0x{command:02x}")
+
+
+def enum_label(key: str, value: bool | float | int) -> str | None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        return None
+    return ENUM_LABELS.get(key, {}).get(value)
+
+
+def format_config_value(key: str, value: bool | float | int) -> str:
+    if isinstance(value, bool):
+        return f"{int(value)} ({'enabled' if value else 'disabled'})"
+    label = enum_label(key, value)
+    if label:
+        return f"{value} ({label})"
+    if isinstance(value, float):
+        return f"{value:.6g}"
+    return str(value)
+
+
+def decode_config(payload: bytes) -> tuple[str, int, dict[str, bool | float | int]] | None:
+    if not payload:
+        return None
+    response_command = payload[0]
+    config = CONFIG_LAYOUTS.get(response_command)
+    if not config:
+        return None
+
+    layout_name, fields = config
+    data = payload[1:]
+    if len(data) < max(field.offset + field.length for field in fields):
+        return None
+
+    values = {field.key: decode_config_value(data, field) for field in fields}
+    return layout_name, response_command, values
+
+
 def decode_telemetry(payload: bytes, layouts: dict[str, list[Field]]) -> tuple[str, dict[str, float | int]] | None:
     candidates = []
     for name, layout in layouts.items():
         size = layout_size(layout)
-        if len(payload) >= size:
+        if len(payload) == size:
             candidates.append((name, payload, False))
-        if len(payload) >= size + 1 and payload[0] in (GET_VALUES, 0x00):
+        if len(payload) == size + 1 and payload[0] in (GET_VALUES, 0x00):
             candidates.append((name, payload[1:], True))
 
     if not candidates:
@@ -183,7 +532,37 @@ def decode_telemetry(payload: bytes, layouts: dict[str, list[Field]]) -> tuple[s
     return name, values
 
 
-def print_summary(layout_name: str, values: dict[str, float | int], raw_payload: bytes) -> None:
+def payload_decode_lengths(payload: bytes) -> tuple[int, int | None]:
+    data_len = len(payload)
+    stripped_data_len = None
+    if payload and payload[0] in (GET_VALUES, 0x00):
+        stripped_data_len = len(payload) - 1
+    return data_len, stripped_data_len
+
+
+def print_decoded(
+    layout_name: str,
+    values: dict[str, float | int],
+    raw_payload: bytes,
+    *,
+    all_fields: bool,
+    json_output: bool,
+) -> None:
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "type": "telemetry",
+                    "layout": layout_name,
+                    "payload_len": len(raw_payload),
+                    "values": values,
+                },
+                separators=(",", ":"),
+            ),
+            flush=True,
+        )
+        return
+
     def fahrenheit(celsius: float | int) -> float:
         return float(celsius) * 9 / 5 + 32
 
@@ -222,10 +601,59 @@ def print_summary(layout_name: str, values: dict[str, float | int], raw_payload:
         "fault",
     ]
     parts = [f"layout={layout_name}", f"payload_len={len(raw_payload)}", *ui_parts]
-    for key in keys:
+    output_keys = values.keys() if all_fields else keys
+    for key in output_keys:
         if key in values:
             parts.append(f"{key}={values[key]}")
     print(" | ".join(parts), flush=True)
+
+
+def print_config_decoded(
+    layout_name: str,
+    response_command: int,
+    values: dict[str, bool | float | int],
+    raw_payload: bytes,
+    *,
+    json_output: bool,
+) -> None:
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "type": "config",
+                    "layout": layout_name,
+                    "command": response_command,
+                    "command_name": command_name(response_command),
+                    "payload_len": len(raw_payload),
+                    "values": {
+                        key: {
+                            "value": value,
+                            "label": enum_label(key, value),
+                            "display": format_config_value(key, value),
+                        }
+                        for key, value in values.items()
+                    },
+                },
+                separators=(",", ":"),
+            ),
+            flush=True,
+        )
+        return
+
+    print(
+        " | ".join(
+            [
+                "type=config",
+                f"layout={layout_name}",
+                f"command={response_command} ({command_name(response_command)})",
+                f"payload_len={len(raw_payload)}",
+            ]
+        ),
+        flush=True,
+    )
+    key_width = max(len(key) for key in values)
+    for key, value in values.items():
+        print(f"  {key:<{key_width}}  {format_config_value(key, value)}", flush=True)
 
 
 def send(proc: subprocess.Popen[str], command: str) -> None:
@@ -341,7 +769,16 @@ def main() -> int:
     parser.add_argument("--interval", type=float, default=1.0, help="GET_VALUES polling interval")
     parser.add_argument("--command", type=lambda x: int(x, 0), default=GET_VALUES)
     parser.add_argument("--count", type=int, default=0, help="stop after N decoded telemetry frames")
+    parser.add_argument("--packet-count", type=int, default=0, help="stop after N validated VESC packets")
     parser.add_argument("--raw", action="store_true", help="print raw validated VESC payloads")
+    parser.add_argument(
+        "--layout",
+        default="auto",
+        choices=["auto", "cyc_uart", "xSeries_uart"],
+        help="telemetry layout to decode; auto chooses the largest layout that fits",
+    )
+    parser.add_argument("--all-fields", action="store_true", help="print every decoded field from the selected layout")
+    parser.add_argument("--json", action="store_true", help="print decoded telemetry as JSON lines with every field")
     args = parser.parse_args()
 
     if args.address:
@@ -349,10 +786,11 @@ def main() -> int:
     else:
         device = choose_device(args.scan_seconds, args.scan)
 
-    layouts = {
+    all_layouts = {
         "cyc_uart": load_layout("cyc_uart.json"),
         "xSeries_uart": load_layout("xSeries_uart.json"),
     }
+    layouts = all_layouts if args.layout == "auto" else {args.layout: all_layouts[args.layout]}
     request = encode_packet(bytes([args.command])).hex()
 
     proc = subprocess.Popen(
@@ -384,6 +822,8 @@ def main() -> int:
     next_poll = 0.0
     notify_re = re.compile(r"value:\s*([0-9a-fA-F ]+)")
     decoded_count = 0
+    packet_count = 0
+    warned_lengths: set[int] = set()
 
     assert proc.stdout is not None
     while proc.poll() is None:
@@ -407,15 +847,48 @@ def main() -> int:
             continue
         rx.extend(bytes.fromhex(match.group(1)))
         for payload in iter_packets(rx):
+            packet_count += 1
             if args.raw:
                 print(f"payload: {payload.hex(' ')}", flush=True)
             decoded = decode_telemetry(payload, layouts)
             if decoded:
-                print_summary(decoded[0], decoded[1], payload)
+                print_decoded(
+                    decoded[0],
+                    decoded[1],
+                    payload,
+                    all_fields=args.all_fields,
+                    json_output=args.json,
+                )
                 decoded_count += 1
                 if args.count and decoded_count >= args.count:
                     stop()
                     return 0
+            else:
+                config_decoded = decode_config(payload)
+                if config_decoded:
+                    print_config_decoded(
+                        config_decoded[0],
+                        config_decoded[1],
+                        config_decoded[2],
+                        payload,
+                        json_output=args.json,
+                    )
+                elif args.layout != "auto" and len(payload) not in warned_lengths:
+                    warned_lengths.add(len(payload))
+                    required = layout_size(layouts[args.layout])
+                    data_len, stripped_data_len = payload_decode_lengths(payload)
+                    detail = f"payload_len={len(payload)}, data_len={data_len}"
+                    if stripped_data_len is not None:
+                        detail += f", command_stripped_data_len={stripped_data_len}"
+                    print(
+                        f"validated packet does not fit layout={args.layout}: "
+                        f"{detail}, required_data_len={required}",
+                        file=sys.stderr,
+                        flush=True,
+                    )
+            if args.packet_count and packet_count >= args.packet_count:
+                stop()
+                return 0
 
     return proc.returncode or 0
 

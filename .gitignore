@@ -1,6 +1,8 @@
 .cygnus-bike.local.json
 __pycache__/
 *.py[cod]
+.venv*/
+data/captures/
 researchdocs/apk/
 researchdocs/captures/
 .agents/
